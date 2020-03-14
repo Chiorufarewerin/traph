@@ -29,7 +29,7 @@ def alpha_composite(src, dst):
 def replace_colors(image):
     """Заменяет одни цвета на картинке на другие, указанные в COLOR_REPLACES"""
 
-    data = np.array(image) 
+    data = np.array(image)
     red, green, blue, _ = data.T
 
     for source_color, replacement_color in COLOR_REPLACES.items():

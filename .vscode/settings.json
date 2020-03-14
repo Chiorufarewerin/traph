@@ -1,11 +1,7 @@
 {
     "editor.fontSize": 12,
     "terminal.integrated.fontSize": 12,
-    "python.linting.pylintEnabled": true,
     "python.linting.flake8Enabled": true,
-    "python.linting.pylintArgs": [
-        "--disable=C0111,unpacking-non-sequence",
-    ],
     "autoDocstring.docstringFormat": "sphinx",
     "autoDocstring.quoteStyle": "\"\"\"",
     "python.linting.flake8Args": [
