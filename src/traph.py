@@ -126,7 +126,9 @@ class Traph:
 
         imgcode.paste(second, (0, imgcode.size[1] - int(13 * wpercent)))
         self.template.paste(imgcode, (530, 477))
-        self.template.paste(Color.BLACK, (290, 648, 1123, 681))
+
+        # ТУТ ЛИНИЯ ПОДРИСОВЫВАЕТСЯ, и ее цвет
+        self.template.paste(Color.RED, (290, 648, 1123, 681))
         for i, char in enumerate(self.code):
             add_text_on_image(self.image,
                               char,
@@ -152,6 +154,8 @@ class Traph:
     def paste_composition(self):
         """Поместить состав"""
 
+        # На самом деле тут по разному пытается подогнатся текст этого состава, в зависимости от размера.
+        # Тут в общем все сложно и значения подбирались ручками, так что вот
         sizetext = 19
         hightext = 17
         widthwrap = 79
