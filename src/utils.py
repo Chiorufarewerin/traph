@@ -35,5 +35,4 @@ def replace_colors(image):
     for source_color, replacement_color in COLOR_REPLACES.items():
         area = (red == source_color[0]) & (blue == source_color[1]) & (green == source_color[2])
         data[..., :-1][area.T] = replacement_color
-    im2 = Image.fromarray(data)
-    return im2
+    return Image.fromarray(data)
