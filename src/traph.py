@@ -47,7 +47,7 @@ def add_group_text(draw, text, x, y, h=25, size=20, font=Font.IMPACT, fill=Color
             sizes.append(height)
         avgheight = sum(sizes) / float(len(sizes))
         y -= centerhsize / 2 - (avgheight - h) - avgheight / 2 * (len(text) - 2)
-        if some:        
+        if some:
             y += avgheight / 2
 
     for line in text:
@@ -215,7 +215,8 @@ class Traph:
         add_text_on_image(self.image, self.tu, 487, 406, font=Font.TIMES, size=16, center=True)
 
         # Категория
-        add_text_on_image(self.image, self.category, 140, 520, center=True, fill=Color.WHITE, size=50, textsize=200, centerh=True)
+        add_text_on_image(self.image, self.category, 140, 520, center=True,
+                          fill=Color.WHITE, size=50, textsize=200, centerh=True)
 
         # Срок годности
         add_text_on_image(self.image, self.shelf_life, 140, 608, center=True, size=38, font=Font.ARIAL)
