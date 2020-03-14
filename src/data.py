@@ -1,13 +1,24 @@
 import os
+import csv
+from io import StringIO
 from functools import lru_cache
 from PIL import Image
 
 
-# Кодировка, в которой открывается текст
-CODING = 'widnows-1251'
+# Имя файла, который будет открываться
+CSV = 'example.csv'
+
+# Какой разделитель используется у данных
+CSV_DELIMITER = ';'
+
+# Кодировка, в которой открывается текст, если не откроется.
+CODING = 'windows-1251'
 
 # Самая главная папка
-MAIN_FOLDER = os.path.dirname(os.path.dirname(os.path.abspath(__name__)))
+MAIN_FOLDER = os.path.dirname(os.path.abspath(__name__))
+
+# Расположение CSV файла
+CSV_FILE = os.path.join(MAIN_FOLDER, CSV)
 
 # Папка data
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__name__)), 'data')
@@ -37,9 +48,12 @@ TIMESBOLD_PATH = os.path.join(FONT_FOLDER, 'timesbold.ttf')
 
 
 # Так как bytes не имеет read аргумента, который нужен для чтения из файла, то используем такой враппер
-class BytesWrapper(bytes):
+class BytesWrapper:
+    def __init__(self, b):
+        self.b = b
+
     def read(self):
-        return self
+        return self.b
 
 
 @lru_cache
@@ -55,10 +69,16 @@ def _get_image(path):
 @lru_cache
 def _get_text(path):
     try:
-        return open(path, 'r', encoding=CODING).read()
+        try:
+            return open(path, 'r').read()
+        except Exception:
+            return open(path, 'r', encoding=CODING).read()
+    except LookupError:
+        print('Неверная кодировка файла')
+        return ''
     except Exception:
         # Если текст не найден возвращает пустой
-        print('Текст {} не найден'.format(path))
+        print('Файл {} не найден'.format(path))
         return ''
 
 
@@ -84,7 +104,7 @@ class Data:
 
     @classmethod
     def get_made_text(cls):
-        return _get_text(MADE_PATH)
+        return list(StringIO(_get_text(MADE_PATH)))
 
     @classmethod
     def get_code(cls, code):
@@ -95,6 +115,11 @@ class Data:
     def get_image(cls, image_name):
         path = os.path.join(IMAGES_FOLDER, image_name)
         return _get_image(path).copy()
+
+    @classmethod
+    def get_csv_data(cls):
+        data = _get_text(CSV_FILE)
+        return list(csv.reader(StringIO(data), delimiter=CSV_DELIMITER))
 
 
 class Font:
@@ -114,6 +139,7 @@ class Color:
 # Какие цвета заментять на какие, пишутся в RGB
 # Например нужно заменить в конце на картинке весь черный на сероватый, то пишем:
 # (0, 0, 0): (27, 27, 27) - заменить цвет с каналами RED - 0, GREEN - 0, BLUE - 0, на 27, 27, 27
+# Сейчас это используется для штрихкодов
 COLOR_REPLACES = {
     (0, 0, 0): Color.BLACK,  # цвет на штрихкоде очень черный, надо сероватый
     (173, 173, 173): Color.WHITE,  # цвет на штрихкоде странный белый, нужно совсем белый

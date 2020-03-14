@@ -1,11 +1,9 @@
-import re
-import os
 import textwrap
-from fpdf import FPDF
 from PIL import Image, ImageDraw, ImageFont
 
-from utils import alpha_composite, replace_color
+from utils import alpha_composite, replace_colors
 from data import Data, Font, Color
+from save import Save
 
 
 def max_size(draw, text, textsize, fonttext):
@@ -59,58 +57,58 @@ def add_group_text(draw, text, x, y, h=25, size=20, font=Font.IMPACT, fill=Color
             y += avgheight
 
 
-def add_composition(draw, what, composition, fats):
-    sizetext = 19
-    hightext = 17
-    widthwrap = 79
-    composition = 'Состав: {}'.format(composition)
-    if len(list(textwrap.wrap('{}. {} {}'.format(what, composition, fats), widthwrap - 4))) > 6:
-        sizetext = 17
-        hightext = 15
-        widthwrap = 88
-    tempfont = ImageFont.truetype(Font.TIMES, sizetext)
-    w, h = add_text_on_image(draw, '{}'.format(what) + '.', 364, 141, font=Font.TIMESBOLD)
-    kol = 1
-    while True:
-        wd, hd = draw.textsize('A{}'.format('a' * (kol + 1)), font=tempfont)
-        if wd >= 1060 - 355 - w:
-            break
-        kol += 1
-    firsttext = textwrap.wrap(composition, kol)[0]
-    add_text_on_image(draw, firsttext, 365 + w, 142, font=Font.TIMES, size=sizetext)
-    wrappedcomposition = textwrap.wrap((composition[len(firsttext):]).strip(), widthwrap)
-    add_group_text(draw, wrappedcomposition, 365, 142 + hightext, font=Font.TIMES, h=hightext)
-    if not wrappedcomposition:
-        return
-    w, h = draw.textsize(wrappedcomposition[-1], font=tempfont)
-    tempbold = ImageFont.truetype(Font.TIMESBOLD)
-    count = len(wrappedcomposition) - 1
-    if not fats:
-        return
-    for fat in fats.split(' '):
-        fat = ' ' + fat
-        wo, h = draw.textsize(fat, font=tempbold)
-        if w + wo > 725:
-            w = 0
-            count += 1
-            fat = fat.strip()
-            wo, h = draw.textsize(fat, font=tempbold)
-        add_text_on_image(draw, fat, 365 + w, 142 + hightext + hightext * count, font=Font.TIMESBOLD)
-        w += wo
+class Traph:
+    """Трафаретка"""
 
+    def __init__(self, name, short_name, what, netto, brutto, proteins, fats, carbohydrates, kkal,
+                 tu, category, composition, shelf_life, code, bold_text=None, top_image=None):
+        self.name = name
+        self.short_name = short_name
+        self.what = what
+        self.netto = netto
+        self.brutto = brutto
+        self.proteins = proteins
+        self.fats = fats
+        self.carbohydrates = carbohydrates
+        self.kkal = kkal
+        self.tu = tu
+        self.category = category
+        self.composition = composition
+        self.shelf_life = shelf_life
+        self.code = code
+        self.bold_text = bold_text
+        self.top_image = top_image
 
-def getdonetraph(name, shortname, what, netto, brutto, belki, fat, uglevodi, kkal, TU, category,
-                 composition, srok, code, fats, *args):
-    template = Image.open('data/template.jpg')
-    template.paste(Image.open('data/logo.jpg', 'r'), (50, 135))
-    if code:
-        imgcode = Image.open('codes/{}.png'.format(code)).convert('RGBA')
+        self.template = Data.get_template()
+        self.image = ImageDraw.Draw(self.template)
+        self.logo = Data.get_logo()
+
+    def make_traph(self):
+        self.paste_logo()
+        self.paste_code()
+        self.paste_top()
+        self.paste_made()
+        self.paste_composition()
+        self.paste_data()
+        self.save()
+
+    def paste_logo(self):
+        """Поместить лого на трафаретку"""
+
+        coords = (50, 135)
+        self.template.paste(self.logo, coords)
+
+    def paste_code(self):
+        """Поместить штрихкод"""
+
+        if not self.code or len(self.code) != 13:
+            return
+        imgcode = Data.get_code(self.code).convert('RGBA')
         white = Image.new('RGBA', size=imgcode.size, color=(255, 255, 255, 255))
         imgcode = alpha_composite(imgcode, white)
         imgcode = imgcode.crop((1, 5, imgcode.size[0] - 1, imgcode.size[1]))
         imgcode.paste(Color.WHITE, (0, imgcode.size[1] - 28, imgcode.size[0], imgcode.size[1]))
-        imgcode = replace_color(imgcode, (0, 0, 0), Color.BLACK)
-        imgcode = replace_color(imgcode, (173, 173, 173), Color.WHITE)
+        imgcode = replace_colors(imgcode)
         codesize = 330
         wpercent = (codesize / float(imgcode.size[0]))
         hsize = int((float(imgcode.size[1]) * float(wpercent)))
@@ -127,96 +125,110 @@ def getdonetraph(name, shortname, what, netto, brutto, belki, fat, uglevodi, kka
         imgcode = imgcode.resize((codesize, hsize + 20))
 
         imgcode.paste(second, (0, imgcode.size[1] - int(13 * wpercent)))
-        if len(code)!=13:
-            imgcode.paste(one, (0, int(118 * wpercent)))
-            imgcode.paste(two, (int(13 * wpercent) + 1, int(118 * wpercent)))
-            imgcode.paste(three, (int(107 * wpercent) + 1, int(118 * wpercent)))
-        else:
-            template.paste(imgcode, (530, 477))
-            template.paste(Color.BLACK, (290, 648, 1123, 681))
-            for i, c in enumerate(code):
-                add_text_on_image(ImageDraw.Draw(template), c,
-                                  int(13 * wpercent) + 535 + i * 22, 687, size=25, font=Font.TIMES)
+        self.template.paste(imgcode, (530, 477))
+        self.template.paste(Color.BLACK, (290, 648, 1123, 681))
+        for i, char in enumerate(self.code):
+            add_text_on_image(self.image,
+                              char,
+                              int(13 * wpercent) + 535 + i * 22, 687,
+                              size=25,
+                              font=Font.TIMES)
 
-    image = ImageDraw.Draw(template)
-    if len(args) == 0 or len(args[0]) == 0:
-        add_text_on_image(image, ''.join([letter + ' ' for letter in name.upper()]), Width / 2, 15,
+    def paste_top(self):
+        """Поместить верхнее изображение или название"""
+
+        if self.top_image:
+            self.template.paste(Data.get_image(self.top_image), (0, 0))
+            return
+        top_text = ' '.join(self.name.upper())  # Текст разделен пробелами
+        add_text_on_image(self.image, top_text, self.template.width / 2, 15,
                           size=80, center=True, fill=Color.WHITE)
-    else:
-        template.paste(Image.open('images/{}'.format(args[0]), 'r'), (0, 0))
-    add_group_text(image, open('data/made.txt', encoding='windows-1251'), 630, 265, font=Font.TIMES)
 
-    if len(netto) < 8:
-        add_text_on_image(image, netto, 130, 280, size=50)
-    else:
-        add_text_on_image(image, netto, 130, 285, size=40)
-    if len(brutto) < 8:
-        add_text_on_image(image, brutto, 130, 360, size=50)
-    else:
-        add_text_on_image(image, brutto, 130, 365, size=40)
+    def paste_made(self):
+        """Поместить текст кем сделано"""
 
-    # Белки добавляются
-    add_text_on_image(image, belki + ' г', 480, 285, font=Font.TIMES, size=17)
+        add_group_text(self.image, Data.get_made_text(), 630, 265, font=Font.TIMES)
 
-    # Жиры
-    add_text_on_image(image, fat + ' г', 480, 305, font=Font.TIMES, size=17)
+    def paste_composition(self):
+        """Поместить состав"""
 
-    # Углеводы
-    add_text_on_image(image, uglevodi + ' г', 480, 323, font=Font.TIMES, size=17)
+        sizetext = 19
+        hightext = 17
+        widthwrap = 79
+        composition = 'Состав: {}'.format(self.composition)
+        if len(list(textwrap.wrap('{}. {} {}'.format(self.what, composition, self.bold_text), widthwrap - 4))) > 6:
+            sizetext = 17
+            hightext = 15
+            widthwrap = 88
+        tempfont = ImageFont.truetype(Font.TIMES, sizetext)
+        w, h = add_text_on_image(self.image, '{}'.format(self.what) + '.', 364, 141, font=Font.TIMESBOLD)
+        kol = 1
+        while True:
+            wd, hd = self.image.textsize('A{}'.format('a' * (kol + 1)), font=tempfont)
+            if wd >= 1060 - 355 - w:
+                break
+            kol += 1
+        firsttext = textwrap.wrap(composition, kol)[0]
+        add_text_on_image(self.image, firsttext, 365 + w, 142, font=Font.TIMES, size=sizetext)
+        wrappedcomposition = textwrap.wrap((composition[len(firsttext):]).strip(), widthwrap)
+        add_group_text(self.image, wrappedcomposition, 365, 142 + hightext, font=Font.TIMES, h=hightext)
+        if not wrappedcomposition:
+            return
+        w, h = self.image.textsize(wrappedcomposition[-1], font=tempfont)
+        tempbold = ImageFont.truetype(Font.TIMESBOLD)
+        count = len(wrappedcomposition) - 1
+        if not self.bold_text:
+            return
+        for fat in self.bold_text.split(' '):
+            fat = ' ' + fat
+            wo, h = self.image.textsize(fat, font=tempbold)
+            if w + wo > 725:
+                w = 0
+                count += 1
+                fat = fat.strip()
+                wo, h = self.image.textsize(fat, font=tempbold)
+            add_text_on_image(self.image, fat, 365 + w, 142 + hightext + hightext * count, font=Font.TIMESBOLD)
+            w += wo
 
-    # Килокалории
-    add_text_on_image(image, kkal, 480, 353, font=Font.TIMES, size=17)
+    def paste_data(self):
+        """Разместить прочую информацию"""
 
-    # ТУ/TU
-    add_text_on_image(image, TU, 487, 406, font=Font.TIMES, size=16, center=True)
+        # Нетто
+        add_text_on_image(self.image, self.netto, 130, 280, size=50 if len(self.netto) < 8 else 40)
 
-    # Категория
-    add_text_on_image(image, category, 140, 520, center=True, fill=Color.WHITE, size=50, textsize=200, centerh=True)
+        # Брутто
+        add_text_on_image(self.image, self.brutto, 130, 360, size=50 if len(self.brutto) < 8 else 40)
 
-    # Срок годности
-    add_text_on_image(image, srok, 140, 608, center=True, size=38, font=Font.ARIAL)
+        # Белки
+        add_text_on_image(self.image, self.proteins + ' г', 480, 285, font=Font.TIMES, size=17)
 
-    # Разбивается имя (которое справа) на коротки слова
-    shortnamewrap = textwrap.wrap(shortname.upper(), 14)
+        # Жиры
+        add_text_on_image(self.image, self.fats + ' г', 480, 305, font=Font.TIMES, size=17)
 
-    add_group_text(image, shortnamewrap, 1250, 289, font=Font.IMPACT,
-                   center=True, centerh=True, size=40, h=0, textsize=313, some=True)
+        # Углеводы
+        add_text_on_image(self.image, self.carbohydrates + ' г', 480, 323, font=Font.TIMES, size=17)
 
-    # Добавляется состав
-    add_composition(image, what, composition, fats)
+        # Килокалории
+        add_text_on_image(self.image, self.kkal, 480, 353, font=Font.TIMES, size=17)
 
-    # Сохранение
-    template.save('save/{}/{} {} {} {}.jpg'.format(category, name, shortname, category, netto).replace('"', ''), 'JPEG', quality=100)
-    template.save('save/{}/1/{} {} {} {}.pdf'.format(category, name, shortname, category, netto).replace('"', ''), 'PDF', resolution=100.0)
+        # ТУ/TU
+        add_text_on_image(self.image, self.tu, 487, 406, font=Font.TIMES, size=16, center=True)
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.image('save/{}/{} {} {} {}.jpg'.format(category, name, shortname, category, netto).replace('"', ''),
-              25.66875, 10.63316582, 161.25445544, 90.712209302)
-    pdf.image('save/{}/{} {} {} {}.jpg'.format(category, name, shortname, category, netto).replace('"', ''),
-              25.66875, 102.23316582, 161.25445544, 90.712209302)
-    pdf.image('save/{}/{} {} {} {}.jpg'.format(category, name, shortname, category, netto).replace('"', ''),
-              25.66875, 193.83316582, 161.25445544, 90.712209302)
-    pdf.output('save/{}/3/{} {} {} {}.pdf'.format(category, name, shortname, category, netto).replace('"', ''), 'F')
+        # Категория
+        add_text_on_image(self.image, self.category, 140, 520, center=True, fill=Color.WHITE, size=50, textsize=200, centerh=True)
 
+        # Срок годности
+        add_text_on_image(self.image, self.shelf_life, 140, 608, center=True, size=38, font=Font.ARIAL)
 
-def main():
-    if not os.path.exists('save'):
-        os.makedirs('save')
-    for dir1 in ['ВЕСОВОЕ', 'ВЕСОВОЕ У', 'ФАСОВАННОЕ']:
-        if not os.path.exists('save/{}'.format(dir1)):
-            os.makedirs('save/{}'.format(dir1))
-        for dir2 in ['1', '3']:
-            if not os.path.exists('save/{}/{}'.format(dir1, dir2)):
-                os.makedirs('save/{}/{}'.format(dir1, dir2))
-    template = Image.open('data/template.jpg')
-    Width, Height = template.size
-    template.close()
-    for i in list(open('example.csv', encoding='windows-1251'))[1:]:
-        getdonetraph(*[re.sub('(?:""([^>]*)"")(?!>)', '«\\1»', (elem if len(elem) < 2 or (elem[0] != '"' and elem[-1] != '"') else
-                                                                elem[1:-1])).strip('\n') for elem in i.split(';')])
-    print('Done!')
+        # Разбивается имя (которое справа) на коротки слова
+        shortnamewrap = textwrap.wrap(self.short_name.upper(), 14)
 
+        # И добавляется
+        add_group_text(self.image, shortnamewrap, 1250, 289, font=Font.IMPACT,
+                       center=True, centerh=True, size=40, h=0, textsize=313, some=True)
 
-if __name__ == '__main__':
-    main()
+    def save(self):
+        """Сохранить трафаретку"""
+
+        save_name = '{} {} {} {}'.format(self.name, self.short_name, self.category, self.netto).replace('"', '')
+        Save.save_template(self.template, self.category, save_name)

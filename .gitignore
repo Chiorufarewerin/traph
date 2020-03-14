@@ -1,1 +1,3 @@
 save/
+.~lock*
+*.pyc

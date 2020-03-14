@@ -1,7 +1,10 @@
+import re
 import numpy as np
 from PIL import Image
 
 from data import COLOR_REPLACES
+
+REGEX_QUOTES = re.compile('(?:""([^>]*)"")(?!>)')
 
 
 def alpha_composite(src, dst):
@@ -36,3 +39,9 @@ def replace_colors(image):
         area = (red == source_color[0]) & (blue == source_color[1]) & (green == source_color[2])
         data[..., :-1][area.T] = replacement_color
     return Image.fromarray(data)
+
+
+def replace_quotes(string):
+    """Заменить обычные кавычни, на елочки"""
+
+    return REGEX_QUOTES.sub('«\\1»', string)
