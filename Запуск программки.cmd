@@ -1,2 +1,2 @@
-C:\Python34\python.exe main.py
+C:\Python34\python.exe src\main.py
 pause
