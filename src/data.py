@@ -1,7 +1,6 @@
 import os
 import csv
 from io import StringIO
-from functools import lru_cache
 from PIL import Image
 
 
@@ -56,7 +55,6 @@ class BytesWrapper:
         return self.b
 
 
-@lru_cache
 def _get_image(path):
     try:
         return Image.open(path)
@@ -66,7 +64,6 @@ def _get_image(path):
         return Image.new('RGB', (0, 0))
 
 
-@lru_cache
 def _get_text(path):
     try:
         try:
@@ -82,7 +79,6 @@ def _get_text(path):
         return ''
 
 
-@lru_cache
 def _get_font(path):
     try:
         return BytesWrapper(open(path, 'rb').read())
@@ -96,11 +92,11 @@ class Data:
 
     @classmethod
     def get_logo(cls):
-        return _get_image(LOGO_PATH).copy()
+        return _get_image(LOGO_PATH)
 
     @classmethod
     def get_template(cls):
-        return _get_image(TEMPLATE_PATH).copy()
+        return _get_image(TEMPLATE_PATH)
 
     @classmethod
     def get_made_text(cls):
@@ -114,7 +110,7 @@ class Data:
     @classmethod
     def get_image(cls, image_name):
         path = os.path.join(IMAGES_FOLDER, image_name)
-        return _get_image(path).copy()
+        return _get_image(path)
 
     @classmethod
     def get_csv_data(cls):
