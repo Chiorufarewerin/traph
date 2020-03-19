@@ -153,46 +153,40 @@ class Traph:
 
     def paste_composition(self):
         """Поместить состав"""
+        x, y = 356, 134  # Начальные координаты блока
+        x2, y2 = 1084, 254  # Конечные координаты блока
+        width, height = x2 - x, y2 - y  # Ширина, высота блока
 
-        # На самом деле тут по разному пытается подогнатся текст этого состава, в зависимости от размера.
-        # Тут в общем все сложно и значения подбирались ручками, так что вот
-        sizetext = 19
-        hightext = 17
-        widthwrap = 79
+        sizetext = 20  # Начальный размер текста
+        widthwrap = 80  # На сколько букв разбивать слов (максимум букв в строке)
         composition = 'Состав: {}'.format(self.composition)
-        if len(list(textwrap.wrap('{}. {} {}'.format(self.what, composition, self.bold_text), widthwrap - 4))) > 6:
-            sizetext = 17
-            hightext = 15
-            widthwrap = 88
-        tempfont = ImageFont.truetype(Font.TIMES, sizetext)
-        w, h = add_text_on_image(self.image, '{}'.format(self.what) + '.', 364, 141, font=Font.TIMESBOLD)
-        kol = 1
-        while True:
-            wd, hd = self.image.textsize('A{}'.format('a' * (kol + 1)), font=tempfont)
-            if wd >= 1060 - 355 - w:
+        full_composition = '{}. {}'.format(self.what, composition)
+
+        # Подгоняем высоту и ширину текста
+        font = ImageFont.truetype(Font.TIMES, sizetext)
+        while sizetext > 0:
+            wrapped = textwrap.wrap(full_composition, widthwrap)
+            for i, wrap in enumerate(wrapped, start=1):
+                w, h = self.image.textsize(wrap, font=font)
+                hightext = h - 4  # Высота текста немного меньше, чем действительная
+                # Если ширина текста больше ширины блока, то уменьшаем количество символов
+                if w >= width:
+                    widthwrap -= 1
+                    break
+
+                # Если высота текста становится больше высоты блока, то уменьшаем размер текста,
+                # и увеличиваем количество символов в строке
+                if hightext * i >= height:
+                    sizetext -= 1
+                    widthwrap += 20
+                    font = ImageFont.truetype(Font.TIMES, sizetext)
+                    break
+            else:
+                # все окей, выходим из цикла
                 break
-            kol += 1
-        firsttext = textwrap.wrap(composition, kol)[0]
-        add_text_on_image(self.image, firsttext, 365 + w, 142, font=Font.TIMES, size=sizetext)
-        wrappedcomposition = textwrap.wrap((composition[len(firsttext):]).strip(), widthwrap)
-        add_group_text(self.image, wrappedcomposition, 365, 142 + hightext, font=Font.TIMES, h=hightext)
-        if not wrappedcomposition:
-            return
-        w, h = self.image.textsize(wrappedcomposition[-1], font=tempfont)
-        tempbold = ImageFont.truetype(Font.TIMESBOLD)
-        count = len(wrappedcomposition) - 1
-        if not self.bold_text:
-            return
-        for fat in self.bold_text.split(' '):
-            fat = ' ' + fat
-            wo, h = self.image.textsize(fat, font=tempbold)
-            if w + wo > 725:
-                w = 0
-                count += 1
-                fat = fat.strip()
-                wo, h = self.image.textsize(fat, font=tempbold)
-            add_text_on_image(self.image, fat, 365 + w, 142 + hightext + hightext * count, font=Font.TIMESBOLD)
-            w += wo
+
+        # Добавляем состав на изображение
+        add_group_text(self.image, wrapped, x, y, size=sizetext, font=Font.TIMES, h=hightext)
 
     def paste_data(self):
         """Разместить прочую информацию"""
